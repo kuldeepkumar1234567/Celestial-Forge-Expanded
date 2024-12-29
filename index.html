@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Forge: Expanded</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: linear-gradient(to top, #000428, #004e92);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .menucontainer, .resources, .craftingarea, .planetary, .facilities {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        h1, h3 {
+            text-align: center;
+            font-size: 2em;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            background-color: #004e92;
+            color: white;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0066cc;
+        }
+        .resource-bar {
+            width: 100%;
+            background: #333;
+            height: 20px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .resource-progress {
+            height: 100%;
+            border-radius: 10px;
+        }
+        .planet-btn, .facility-btn, .generator-btn {
+            transition: transform 0.3s ease;
+        }
+        .planet-btn:hover, .facility-btn:hover, .generator-btn:hover {
+            transform: scale(1.1);
+        }
+        .notification {
+            background-color: #333;
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 1.1em;
+            text-align: center;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+        }
+        .notification.show {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Celestial Forge: Expanded</h1>
+
+    <!-- Resources Section -->
+    <div class="resources">
+        <h3>Resources</h3>
+        <p>Stardust: <span id="stardust">0</span></p>
+        <div class="resource-bar"><div id="stardust-bar" class="resource-progress" style="width: 0%; background-color: #ffcc00;"></div></div>
+        <p>Cosmic Ore: <span id="cosmicOre">0</span></p>
+        <div class="resource-bar"><div id="cosmicOre-bar" class="resource-progress" style="width: 0%; background-color: #ff6600;"></div></div>
+        <p>Plasma: <span id="plasma">0</span></p>
+        <div class="resource-bar"><div id="plasma-bar" class="resource-progress" style="width: 0%; background-color: #6600cc;"></div></div>
+    </div>
+
+    <!-- Crafting Area -->
+    <div class="craftingarea">
+        <h3>Crafting</h3>
+        <ul id="craftingList"></ul>
+    </div>
+
+    <!-- Planetary Exploration -->
+    <div class="planetary">
+        <h3>Planetary Exploration</h3>
+        <button class="planet-btn" onclick="unlockPlanet('Mars')">Explore Mars (1000 Cosmic Ore) Next Update</button>
+        <button class="planet-btn" onclick="unlockPlanet('Venus')">Explore Venus (5000 Plasma) Next Update</button>
+        <ul id="planetList"></ul>
+    </div>
+
+    <!-- Facilities and Upgrades -->
+    <div class="facilities">
+        <h3>Empire Building</h3>
+        <button class="facility-btn" onclick="upgradeFacility('Spaceport')">Upgrade Spaceport</button>
+        <button class="facility-btn" onclick="upgradeFacility('Laboratory')">Upgrade Laboratory</button>
+        <ul id="facilityList"></ul>
+    </div>
+
+    <!-- Generators Section -->
+    <div class="generators">
+        <h3>Generators</h3>
+        <button class="generator-btn" onclick="buyGenerator('Stardust')">Buy Stardust Generator (100 Stardust)</button>
+        <button class="generator-btn" onclick="buyGenerator('Cosmic Ore')">Buy Cosmic Ore Generator (50 Stardust)</button>
+        <button class="generator-btn" onclick="buyGenerator('Plasma')">Buy Plasma Generator (250 Cosmic Ore)</button>
+        <ul id="generatorList"></ul>
+    </div>
+
+    <!-- Notification Area -->
+    <div id="notificationArea" class="notification"></div>
+
+    <script>
+        // Resource Counters
+        let stardust = 0, cosmicOre = 0, plasma = 0;
+        const maxStardust = 100000, maxCosmicOre = 100000, maxPlasma = 100000;
+
+        // Generators
+        let stardustGenerators = 0, cosmicOreGenerators = 0, plasmaGenerators = 0;
+        const generatorCost = {
+            Stardust: 100,         // 100 Stardust
+            "Cosmic Ore": 500,    // 50 Stardust
+            Plasma: 250          // 250 Cosmic Ore
+        };
+        const generators = {
+            Stardust: 1,
+            "Cosmic Ore": 1,
+            Plasma: 1
+        };
+
+        // Planet Costs
+        const planetCost = {
+            Mars: 1000,         // 1000 Cosmic Ore
+            Venus: 5000         // 5000 Plasma
+        };
+
+        // Artifact Recipes and Empire Upgrade Requirements
+        const artifacts = {
+            "Star": { Stardust: 10, CosmicOre: 5, Plasma: 3 },
+            "Black Hole": { Stardust: 20, CosmicOre: 10, Plasma: 8 },
+            "Dyson Sphere": { Stardust: 50, CosmicOre: 30, Plasma: 15 },
+            "Quantum Computer": { Stardust: 30, CosmicOre: 20, Plasma: 5 },
+            "Solar Flare": { Stardust: 40, CosmicOre: 25, Plasma: 10 },
+            "Time Crystal": { Stardust: 60, CosmicOre: 40, Plasma: 20 },
+            "Antimatter Reactor": { Stardust: 100, CosmicOre: 50, Plasma: 30 },
+            "Dark Matter": { Stardust: 150, CosmicOre: 70, Plasma: 50 },
+            "Warp Drive": { Stardust: 200, CosmicOre: 100, Plasma: 75 },
+            "Terraformer": { Stardust: 300, CosmicOre: 150, Plasma: 100 },
+            "Galactic Core": { Stardust: 500, CosmicOre: 250, Plasma: 200 },
+            "Nebula Engine": { Stardust: 700, CosmicOre: 400, Plasma: 300 },
+            "Supernova": { Stardust: 1000, CosmicOre: 500, Plasma: 400 }
+        };
+
+        // Artifact Count Tracker
+        const artifactCount = {
+            "Star": 0,
+            "Black Hole": 0,
+            "Dyson Sphere": 0,
+            "Quantum Computer": 0,
+            "Solar Flare": 0,
+            "Time Crystal": 0,
+            "Antimatter Reactor": 0,
+            "Dark Matter": 0,
+            "Warp Drive": 0,
+            "Terraformer": 0,
+            "Galactic Core": 0,
+            "Nebula Engine": 0,
+            "Supernova": 0
+        };
+
+        // Planetary and Facility Tracking
+        const planets = [];
+        const facilities = { Spaceport: 0, Laboratory: 0 };
+
+        // Empire Upgrade Requirements
+        const empireUpgrades = {
+            Spaceport: [
+                { level: 1, artifact: "Dyson Sphere", requiredAmount: 1 },
+                { level: 2, artifact: "Quantum Computer", requiredAmount: 1 },
+                { level: 3, artifact: "Antimatter Reactor", requiredAmount: 1 }
+            ],
+            Laboratory: [
+                { level: 1, artifact: "Solar Flare", requiredAmount: 1 },
+                { level: 2, artifact: "Time Crystal", requiredAmount: 1 },
+                { level: 3, artifact: "Warp Drive", requiredAmount: 1 }
+            ]
+        };
+
+        // Resource Generation
+        function collectResource(resource) {
+            if (resource === 'Stardust') stardust = Math.min(stardust + 1, maxStardust);
+            if (resource === 'Cosmic Ore') cosmicOre = Math.min(cosmicOre + 1, maxCosmicOre);
+            if (resource === 'Plasma') plasma = Math.min(plasma + 1, maxPlasma);
+            updateResourceDisplay();
+        }
+
+        function updateResourceDisplay() {
+            document.getElementById('stardust').textContent = stardust;
+            document.getElementById('cosmicOre').textContent = cosmicOre;
+            document.getElementById('plasma').textContent = plasma;
+
+            // Update the progress bars
+            document.getElementById('stardust-bar').style.width = `${(stardust / maxStardust) * 100}%`;
+            document.getElementById('cosmicOre-bar').style.width = `${(cosmicOre / maxCosmicOre) * 100}%`;
+            document.getElementById('plasma-bar').style.width = `${(plasma / maxPlasma) * 100}%`;
+        }
+
+        // Crafting Artifacts
+        function populateCraftingMenu() {
+            const craftingList = document.getElementById('craftingList');
+            craftingList.innerHTML = '';
+            for (let artifact in artifacts) {
+                const recipe = artifacts[artifact];
+                craftingList.innerHTML += `
+                    <li>
+                        ${artifact}: 
+                        Stardust: ${recipe.Stardust}, Cosmic Ore: ${recipe.CosmicOre}, Plasma: ${recipe.Plasma}
+                        <span>Crafted: ${artifactCount[artifact]}</span>
+                        <button onclick="craftArtifact('${artifact}')">Craft</button>
+                    </li>`;
+            }
+        }
+
+        function craftArtifact(artifact) {
+            const recipe = artifacts[artifact];
+            if (stardust >= recipe.Stardust && cosmicOre >= recipe.CosmicOre && plasma >= recipe.Plasma) {
+                stardust -= recipe.Stardust;
+                cosmicOre -= recipe.CosmicOre;
+                plasma -= recipe.Plasma;
+                artifactCount[artifact]++;
+                updateResourceDisplay();
+                populateCraftingMenu(); // Update the artifact counts
+                showNotification(`${artifact} crafted successfully!`);
+            } else {
+                showNotification(`Not enough resources to craft ${artifact}.`, 'error');
+            }
+        }
+
+        // Planetary Exploration
+        function unlockPlanet(planet) {
+            let cost = planetCost[planet];
+            if (planet === 'Mars' && cosmicOre >= cost) {
+                cosmicOre -= cost;
+                planets.push(planet);
+                const planetList = document.getElementById('planetList');
+                planetList.innerHTML += `<li class="success-message">${planet} unlocked!</li>`;
+                updateResourceDisplay();
+                showNotification(`${planet} unlocked!`);
+            } else if (planet === 'Venus' && plasma >= cost) {
+                plasma -= cost;
+                planets.push(planet);
+                const planetList = document.getElementById('planetList');
+                planetList.innerHTML += `<li class="success-message">${planet} unlocked!</li>`;
+                updateResourceDisplay();
+                showNotification(`${planet} unlocked!`);
+            } else {
+                showNotification(`Not enough resources to explore ${planet}.`, 'error');
+            }
+        }
+
+        // Facility Upgrades
+        function upgradeFacility(facility) {
+            const upgrade = empireUpgrades[facility] ? empireUpgrades[facility][facilities[facility]] : null;
+            if (upgrade) {
+                const requiredArtifact = upgrade.artifact;
+                const requiredAmount = upgrade.requiredAmount;
+                if (artifactCount[requiredArtifact] >= requiredAmount) {
+                    facilities[facility]++;
+                    showNotification(`${facility} upgraded to level ${facilities[facility]}!`);
+                } else {
+                    showNotification(`Not enough ${requiredArtifact} to upgrade ${facility}.`, 'error');
+                }
+            } else {
+                showNotification(`${facility} is already fully upgraded!`, 'success');
+            }
+        }
+
+        // Generator Purchases
+        function buyGenerator(resource) {
+            if (resource === 'Stardust' && stardust >= generatorCost[resource] && stardustGenerators === 0) {
+                stardust -= generatorCost[resource];
+                stardustGenerators++;
+                showNotification('Stardust Generator purchased!');
+                startResourceCollection('Stardust'); // Start collecting Stardust
+            } else if (resource === 'Cosmic Ore' && stardust >= generatorCost["Cosmic Ore"] && cosmicOreGenerators === 0) {
+                stardust -= generatorCost["Cosmic Ore"];
+                cosmicOreGenerators++;
+                showNotification('Cosmic Ore Generator purchased!');
+                startResourceCollection('Cosmic Ore'); // Start collecting Cosmic Ore
+            } else if (resource === 'Plasma' && cosmicOre >= generatorCost["Plasma"] && plasmaGenerators === 0) {
+                cosmicOre -= generatorCost["Plasma"];
+                plasmaGenerators++;
+                showNotification('Plasma Generator purchased!');
+                startResourceCollection('Plasma'); // Start collecting Plasma
+            } else {
+                showNotification(`Cannot buy ${resource} Generator.`, 'error');
+            }
+            updateResourceDisplay();
+        }
+
+        // Start collecting resources every second after game load
+        function startResourceCollection(resource) {
+            if (resource === 'Stardust') {
+                setInterval(() => collectResource('Stardust'), 1000);  // Collect Stardust every 1 second
+            } else if (resource === 'Cosmic Ore') {
+                setInterval(() => collectResource('Cosmic Ore'), 2000); // Collect Cosmic Ore every 2 seconds
+            } else if (resource === 'Plasma') {
+                setInterval(() => collectResource('Plasma'), 3000);  // Collect Plasma every 3 seconds
+            }
+        }
+
+        // Notification System
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notificationArea');
+            notification.textContent = message;
+            notification.className = `notification show ${type}`;
+            setTimeout(() => {
+                notification.className = 'notification';
+            }, 3000);
+        }
+
+        // Initialize the game
+        populateCraftingMenu();
+        updateResourceDisplay();
+        startResourceCollection('Stardust');
+        startResourceCollection('Cosmic Ore');
+        startResourceCollection('Plasma');
+        // Local Storage Handling
+        function saveGame() {
+            const gameData = {
+                stardust,
+                cosmicOre,
+                plasma,
+                stardustGenerators,
+                cosmicOreGenerators,
+                plasmaGenerators,
+                artifactCount,
+                planets,
+                facilities
+            };
+            localStorage.setItem('celestialForgeGameData', JSON.stringify(gameData));
+            showNotification('Game saved!');
+        }
+
+        function loadGame() {
+            const savedData = localStorage.getItem('celestialForgeGameData');
+            if (savedData) {
+                const gameData = JSON.parse(savedData);
+                stardust = gameData.stardust || 0;
+                cosmicOre = gameData.cosmicOre || 0;
+                plasma = gameData.plasma || 0;
+                stardustGenerators = gameData.stardustGenerators || 0;
+                cosmicOreGenerators = gameData.cosmicOreGenerators || 0;
+                plasmaGenerators = gameData.plasmaGenerators || 0;
+                Object.assign(artifactCount, gameData.artifactCount);
+                planets.splice(0, planets.length, ...gameData.planets);
+                Object.assign(facilities, gameData.facilities);
+                updateResourceDisplay();
+                populateCraftingMenu();
+                showNotification('Game loaded!');
+            }
+        }
+
+        // Resource Management and UI Updates (unchanged)
+
+        // Call loadGame on page load
+        window.onload = function() {
+            loadGame();
+            setInterval(saveGame, 60000); // Auto-save every minute
+        };
+    </script>
+</body>
+</html>
